@@ -58,8 +58,8 @@ If a test that was previously failing has now passed in the most recent run, it 
 [e2e-electron]  New UV Environment > Python - Add new UV environment - Timed out 15000ms waiting for locator('.quick-input-widget .quick-input-box input') to be not visible. The locator remained visible unexpectedly
 
 ⭐️ New Tests (2):
-[Console Pane: Alternate Python] Verify alternate python can skip bundled ipykernel
-[Console Pane: Python] Python - queue user input while interpreter is starting
+[Console Pane: Alternate Python] Verify alternate python can skip bundled ipykernel (added by Marie Idleman)
+[Console Pane: Python] Python - queue user input while interpreter is starting (added by Marie Idleman)
 
 ✅ Resolved (1):
 [Interpreter: Excludes] R - Can Exclude an Interpreter
