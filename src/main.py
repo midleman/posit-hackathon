@@ -17,9 +17,9 @@ CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
 HEADERS = {"Authorization": f"Bearer {CURRENTS_API_KEY}"}
 
-CURRENTS_CURRENT_RUN_ID = '149ca10cd4d57dad' # recovered
+# CURRENTS_CURRENT_RUN_ID = '149ca10cd4d57dad' # recovered
 # CURRENTS_CURRENT_RUN_ID = '7210d6e74f883567' # passing
-# CURRENTS_CURRENT_RUN_ID = '0603d0369cfd356f' # new failure
+CURRENTS_CURRENT_RUN_ID = 'c58b9ba2c5f1dd01' # new failure
 # CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d' # persistent failure
 # CURRENTS_CURRENT_RUN_ID = 'b150b33a8d808621' # new tests (set LAST_RUN_LIMIT to 30)
 # CURRENTS_CURRENT_RUN_ID = 'cd6f705cb1aed1d0' # many failures
@@ -255,7 +255,7 @@ def get_test_history(spec, test_name, run_timestamp):
 
         # Save the history data to history.json for debugging and reference
         try:
-            with open("history.json", "w") as f:
+            with open("output/history.json", "w") as f:
                 json.dump(all_results, f, indent=2, default=str)
         except Exception as e:
             print(f"Error writing history to file: {e}", file=sys.stderr)
@@ -334,7 +334,7 @@ def build_test_diff(previous_results, current_results, current_run_author, curre
     # Write the diff to a JSON file for debugging and reference
 
     try:
-        with open("diff.json", "w") as f:
+        with open("output/diff.json", "w") as f:
             json.dump(diff, f, indent=2, default=str)
         # print(f"Test diff written to {output_file}")
     except Exception as e:
@@ -345,19 +345,33 @@ def build_test_diff(previous_results, current_results, current_run_author, curre
 
 def get_last_runs():
     limit = LAST_RUN_LIMIT
-    url = f"https://api.currents.dev/v1/projects/{CURRENTS_PROJECT_ID}/runs?limit={limit}"
+    url = f"https://api.currents.dev/v1/projects/{CURRENTS_PROJECT_ID}/runs?limit={limit}&tags[]=merge"
+
     # print(f"Fetching last {limit} runs from {url}")
+
+    all_runs = []
     try:
+        # Initial request to get the first page of runs
         response = retry_request(requests.get, url, headers=HEADERS)
-        all_runs = response.json().get("data", [])
-        return [
-            r for r in all_runs
-            if r.get("meta", {}).get("commit", {}).get("branch") in ["main", "refs/heads/main"]
-            and "release" not in r.get("tags", [])
-        ]
+        runs = response.json().get("data", [])
+        all_runs.extend(runs)
+
+        # Check if there are more runs using pagination
+        while len(runs) == limit:
+            # Use the last run's `cursor` for pagination
+            next_cursor = response.json().get("meta", {}).get("next_cursor")
+            if next_cursor:
+                paginated_url = f"{url}&starting_after={next_cursor}"
+                response = retry_request(requests.get, paginated_url, headers=HEADERS)
+                runs = response.json().get("data", [])
+                all_runs.extend(runs)
+            else:
+                break
+
     except requests.RequestException as e:
         print(f"Error fetching runs: {e}", file=sys.stderr)
-        return []
+
+    return all_runs
 
 # Define the tools for OpenAI to use
 tools = [
@@ -515,10 +529,16 @@ def process_conversation(messages):
             if function_name == "get_last_runs":
                 print("📦 Loading run data...")
                 runs = get_last_runs()
+                # Write runs data to JSON file for debugging and reference
+                try:
+                    with open("output/runs.json", "w") as f:
+                        json.dump(runs, f, indent=2, default=str)
+                except Exception as e:
+                    print(f"Error writing runs to file: {e}", file=sys.stderr)
                 current_index = next((i for i, r in enumerate(runs) if r["runId"] == CURRENTS_CURRENT_RUN_ID), None)
 
                 if current_index is None:
-                    print("No CURRENTS_CURRENT_RUN_ID found", file=sys.stderr)
+                    print(f"No CURRENTS_CURRENT_RUN_ID found: {CURRENTS_CURRENT_RUN_ID}", file=sys.stderr)
                     sys.exit(1)
 
                 if current_index + 1 >= len(runs):
@@ -564,10 +584,10 @@ def process_conversation(messages):
                 previous_run_id = context.get("previous_run_id")
 
                 # print previous_run_results to file
-                with open(f"previous_run_results-{previous_run_id}.json", "w") as file:
+                with open(f"output/previous_run_results-{previous_run_id}.json", "w") as file:
                     json.dump(previous_run_results, file, indent=2)
                 # print current_run_results to file
-                with open(f"current_run_results-{current_run_id}.json", "w") as file:
+                with open(f"output/current_run_results-{current_run_id}.json", "w") as file:
                     json.dump(current_run_results, file, indent=2)
 
                 # Ensure that previous and current results are not None
@@ -610,12 +630,14 @@ def process_conversation(messages):
 messages = [
     {
         "role": "system",
-        "content": """You are an assistant that can fetch Playwright test results from the Currents.dev API and analyze them using the provided `run_diff` data. 
+        "content": 
+        """You are an assistant that can fetch Playwright test results from the Currents.dev API and analyze them using the provided `run_diff` data. 
         The following steps need to be completed in sequence:
         1. Fetch the last 2 runs for the project with {CURRENTS_PROJECT_ID}. Use `get_last_runs`. Refer to the most recent as `current_run_id` and the second most recent as `previous_run_id`.
         2. Fetch the test results for both runs using `get_test_results_for_run` for the `current_run_id` and `previous_run_id`.
         3. Build a test diff between the previous and current results using `build_test_diff`. Use context: `run_diff` to categorize the tests:
             - Only include a section if it has at least one test. Do not include any commentary for empty sections or a high level summary, just the sections below should be included.
+            - If there are no new failures, no new tests, no resolved issues, and no tests that are still failing, just return "All tests passed. ✅"
 
         🧩 Common Themes (only show this section if there are 5+ New Failures)
         If there are 5 or more new failures, include a section called '🧩 Common Themes' summarizing any shared causes, errors, or themes. If there is more than one observation, separate them on a new line with a bullet point.
