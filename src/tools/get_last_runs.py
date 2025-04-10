@@ -4,7 +4,7 @@ import os
 import sys
 
 MAX_WORKERS = 5
-LAST_RUN_LIMIT = 10
+LAST_RUN_LIMIT = 20
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
 HEADERS = {"Authorization": f"Bearer {CURRENTS_API_KEY}"}

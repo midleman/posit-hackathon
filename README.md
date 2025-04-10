@@ -51,8 +51,18 @@ To get started with this project, follow these steps:
 If a test that was previously failing has now passed in the most recent run, it will be categorized under "Resolved." Here's an example:
 
 ```bash
+🫠 Still Failing (1)
+[e2e-electron]  New UV Environment > Python - Add new UV environment (3 consecutive fails) - since commit [abc1234](http://www.google.com)
+
+🔴 New Failure (1)
+[e2e-electron]  New UV Environment > Python - Add new UV environment - Timed out 15000ms waiting for locator('.quick-input-widget .quick-input-box input') to be not visible. The locator remained visible unexpectedly
+
+⭐️ New Tests (2):
+[Console Pane: Alternate Python] Verify alternate python can skip bundled ipykernel
+[Console Pane: Python] Python - queue user input while interpreter is starting
+
 ✅ Resolved (1):
-[e2e-electron] New UV Environment > Python - Add new UV environment
+[Interpreter: Excludes] R - Can Exclude an Interpreter
 ```
 
 ### There are no notable diffs between the runs

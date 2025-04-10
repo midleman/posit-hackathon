@@ -17,9 +17,11 @@ CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
 
 # Toggle for different scenarios
-# CURRENTS_CURRENT_RUN_ID = '149ca10cd4d57dad' # recovered
+CURRENTS_CURRENT_RUN_ID = '82224ed471d13022' # new failure
+CURRENTS_CURRENT_RUN_ID = '149ca10cd4d57dad' # recovered
+# CURRENTS_CURRENT_RUN_ID = '324ac53e1fc63ec9' # new failure
+
 # CURRENTS_CURRENT_RUN_ID = '7210d6e74f883567' # passing
-CURRENTS_CURRENT_RUN_ID = '324ac53e1fc63ec9' # new failure
 # CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d' # persistent failure
 # CURRENTS_CURRENT_RUN_ID = 'b150b33a8d808621' # new tests (set LAST_RUN_LIMIT to 30)
 # CURRENTS_CURRENT_RUN_ID = 'cd6f705cb1aed1d0' # many failures
@@ -199,6 +201,8 @@ def process_conversation(messages):
                     sys.exit(1)
 
                 if current_index + 1 >= len(runs):
+                    print(f'current_index {current_index}, total {len(runs)}')
+
                     print("No previous run found for comparison.", file=sys.stderr)
                     sys.exit(1)
 
@@ -288,18 +292,18 @@ messages = [
     {
         "role": "system",
         "content": 
-        """You are an assistant that can fetch Playwright test results from the Currents.dev API and analyze them using the provided `run_diff` data. 
+        f"""You are an assistant that can fetch Playwright test results from the Currents.dev API and analyze them using the provided `run_diff` data. 
         The following steps need to be completed in sequence:
         1. Fetch the last 2 runs for the project with {CURRENTS_PROJECT_ID}. Use `get_last_runs`. Refer to the most recent as `current_run_id` and the second most recent as `previous_run_id`.
         2. Fetch the test results for both runs using `get_test_results_for_run` for the `current_run_id` and `previous_run_id`.
-        3. Build a test diff between the previous and current results using `build_test_diff`. Use context: `run_diff` to categorize the tests:
+        3. Build a test diff between the previous and current results using `build_test_diff`. Use {context.get('run_diff')} to categorize the tests:
             - Only include a section if it has at least one test. Do not include any commentary for empty sections or a high level summary, just the sections below should be included.
             - If there are no new failures, no new tests, no resolved issues, and no tests that are still failing, just return "All tests passed. ✅"
 
         🧩 Common Themes (only show this section if there are 5+ New Failures)
         If there are 5 or more new failures, include a section called '🧩 Common Themes' summarizing any shared causes, errors, or themes. If there is more than one observation, separate them on a new line with a bullet point.
 
-        🔴 New Failures (new_failures_count):
+        🔴 New Failures (run_diff[New Failures]):
         if len(diff["Still Failing"]) > 0:
         analysis += "🫠 Still Failing (X):\n" + "\n".join([test["name"] for test in diff["Still Failing"]])
         For each test that failed:
@@ -310,16 +314,16 @@ messages = [
         [e2e-group] Feature > Test name
         [e2e-browser] Feature2 > Test name (increased flakiness, 3+ failures in last 5 runs)
 
-        🫠 Still Failing (still_failing_count):
+        🫠 Still Failing (run_diff[Still Failing]):
         - Do not include error analysis.
         [e2e-win] Feature > Test name (X consecutive fails) – since commit [shorthand commitSHA]('https://github.com/posit-dev/positron/commit/fullcommitSHA')
     
-        ⭐️ New Tests (new_test_count):
+        ⭐️ New Tests (run_diff[New Tests]):
         - No extra commentary.
         [groupId] Feature > Test name (added by commit.authorName)
         [e2e-electron] Login > Should be able to login (added by Marie Idleman)
 
-        ✅ Resolved (resolved_count):
+        ✅ Resolved (run_diff[Resolved]):
         [e2e-electron] Feature > Test name
         """
     }]
