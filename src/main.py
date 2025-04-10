@@ -18,9 +18,8 @@ CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
 
 # Toggle for different scenarios
 CURRENTS_CURRENT_RUN_ID = '82224ed471d13022' # new failure
-CURRENTS_CURRENT_RUN_ID = '149ca10cd4d57dad' # recovered
+# CURRENTS_CURRENT_RUN_ID = '149ca10cd4d57dad' # recovered
 # CURRENTS_CURRENT_RUN_ID = '324ac53e1fc63ec9' # new failure
-
 # CURRENTS_CURRENT_RUN_ID = '7210d6e74f883567' # passing
 # CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d' # persistent failure
 # CURRENTS_CURRENT_RUN_ID = 'b150b33a8d808621' # new tests (set LAST_RUN_LIMIT to 30)
