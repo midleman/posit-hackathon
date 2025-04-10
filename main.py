@@ -11,16 +11,18 @@ from tqdm import tqdm
 
 load_dotenv()
 
+MAX_WORKERS = 5
+LAST_RUN_LIMIT = 10
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
 HEADERS = {"Authorization": f"Bearer {CURRENTS_API_KEY}"}
-CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d'  # you can set this dynamically as needed
-# '149ca10cd4d57dad' # recovered
-# '7210d6e74f883567' # passing
-# '0603d0369cfd356f', 'c58b9ba2c5f1dd01' # new failure
-# 'b5b38a6560f9218d' # persistent failure
-# 'b150b33a8d808621' # new tests
-# 'cd6f705cb1aed1d0' # many failures
+
+CURRENTS_CURRENT_RUN_ID = '149ca10cd4d57dad' # recovered
+# CURRENTS_CURRENT_RUN_ID = '7210d6e74f883567' # passing
+# CURRENTS_CURRENT_RUN_ID = '0603d0369cfd356f' # new failure
+# CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d' # persistent failure
+# CURRENTS_CURRENT_RUN_ID = 'b150b33a8d808621' # new tests (set LAST_RUN_LIMIT to 30)
+# CURRENTS_CURRENT_RUN_ID = 'cd6f705cb1aed1d0' # many failures
 
 
 # Initialize the OpenAI client
@@ -28,21 +30,38 @@ client = OpenAI()
 
 # Define your tools
 def retry_request(func, *args, **kwargs):
-    retries = 3
+    retries = 5  # Number of retries
     for attempt in range(retries):
         try:
+            # Perform the API call
             response = func(*args, **kwargs)
+
+            # Check if the response status is 429 (rate limit exceeded)
             if response.status_code == 429:
-                retry_after = int(response.headers.get("Retry-After", 1))
-                time.sleep(retry_after)
-                continue
-            response.raise_for_status()  # Raise an exception for bad status codes
+                remaining = int(response.headers.get("X-RateLimit-Remaining", 0))
+                limit = int(response.headers.get("X-RateLimit-Limit", 1))
+
+                # If we're out of requests, we should back off and wait for the reset time
+                if remaining == 0:
+                    reset_time = int(response.headers.get("X-RateLimit-Reset", time.time()))
+                    wait_time = max(1, reset_time - time.time())  # Wait until reset time
+                    print(f"Rate limit reached. Waiting for {wait_time} seconds.")
+                    time.sleep(wait_time)
+                    continue  # Retry the request after waiting
+
+            # If we get a successful response, return it
+            response.raise_for_status()
             return response
+
         except requests.RequestException as e:
             if attempt < retries - 1:
-                time.sleep(random.uniform(1, 2 ** attempt))  # Exponential backoff
+                # Exponential backoff if there is a request error
+                backoff_time = random.uniform(1, 2 ** attempt)  # Exponential backoff
+                print(f"Request failed. Retrying in {backoff_time:.2f} seconds... Error: {e}")
+                time.sleep(backoff_time)
             else:
-                raise e
+                print(f"Max retries reached. Final error: {e}")
+                raise e  # After max retries, raise the exception
             
 
 # Define the tool to fetch test results
@@ -64,7 +83,7 @@ def fetch_instance_tests(instance_id):
         # Process tests concurrently if there are many
         results = []
         if len(tests) > 10:  # Only use concurrency if there are enough tests to justify it
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(tests))) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(tests))) as executor:
                 def process_test(test):
                     test_name = " > ".join(test["title"]) if isinstance(test["title"], list) else str(test["title"])
                     return {
@@ -104,7 +123,7 @@ def get_test_results_for_run(run_id):
     headers = {"Authorization": f"Bearer {CURRENTS_API_KEY}"}
 
     try:
-        print(f"Fetching test results for run {run_id}...")
+        # print(f"Fetching test results for run {run_id}...")
         run_response = retry_request(requests.get, run_url, headers=headers, timeout=10)
         run_data = run_response.json().get("data", {})
         specs = run_data.get("specs", [])
@@ -119,17 +138,17 @@ def get_test_results_for_run(run_id):
 
     # Collect test instance IDs
     instance_ids = [spec.get("instanceId") for spec in specs if spec.get("instanceId")]
-    print(f"Found {len(instance_ids)} test instances in run {run_id}")
+    # print(f"Found {len(instance_ids)} test instances in run {run_id}")
 
     results = []
     # Process instance IDs sequentially instead of using ThreadPoolExecutor
     # Use ThreadPoolExecutor for parallel fetching of test instances
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(20, len(instance_ids))) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(instance_ids))) as executor:
         # Submit all fetch tasks
         future_to_instance = {executor.submit(fetch_instance_tests, instance_id): instance_id for instance_id in instance_ids}
         
         # Process results as they complete
-        for future in tqdm(concurrent.futures.as_completed(future_to_instance), total=len(instance_ids), desc="Fetching test instances"):
+        for future in tqdm(concurrent.futures.as_completed(future_to_instance), total=len(instance_ids), desc=f"⬇️  Retrieve {run_id} tests ({len(instance_ids)})"):
             instance_id = future_to_instance[future]
             try:
                 test_instance = future.result()
@@ -192,34 +211,57 @@ def get_test_history(spec, test_name, run_timestamp):
         date_start = date_end - timedelta(days=5)
         date_start_str = date_start.isoformat() + "Z"
         date_end_str = date_end.isoformat() + "Z"
+        # print(f'Date range: {date_start_str} to {date_end_str}')
 
         history_url = f"https://api.currents.dev/v1/test-results/{signature}"
-        print(f"Fetching history for {spec} > {test_name}...")
-        print(f"History URL: {history_url}")
-        # print(f"Date range: {date_start_str} to {date_end_str}")
+        # print(f"History URL: {history_url}")
+
+        # Pagination logic - fetch all pages of results
+        all_results = []
         params = {
-            # "branch[]": ["main", "refs/heads/main"],
-            # "tags[]": ["merge"],
             "date_start": date_start_str,
             "date_end": date_end_str,
         }
 
-        response = retry_request(requests.get, history_url, headers=headers, params=params, timeout=10)
-        data = response.json().get("data", [])
-        latest_commit = data[0].get("commit", {}) if data else {}
+        # Initial request to fetch the first page of results
+        while True:
+            response = retry_request(requests.get, history_url, headers=headers, params=params, timeout=10)
+            data = response.json().get("data", [])
+            
+            if not data:
+                break  # No more results to fetch
+
+            all_results.extend(data)
+
+            # Check for the presence of pagination fields in the response
+            next_cursor = response.json().get("meta", {}).get("next_cursor")
+            if next_cursor:
+                params["starting_after"] = next_cursor  # Use next_cursor to fetch the next page
+            else:
+                break  # No more pages, break the loop
+
+        # Now process the fetched history data
+        latest_commit = all_results[0].get("commit", {}) if all_results else {}
         author = latest_commit.get("authorName")
         last_pass_commit_sha = None
         last_pass_date = None
         consecutive_failures = 0
 
-        for result in data:
+        for result in all_results:
             if result.get("status") == "failed":
                 consecutive_failures += 1
             elif result.get("status") == "passed":
                 break
 
+        # Save the history data to history.json for debugging and reference
+        try:
+            with open("history.json", "w") as f:
+                json.dump(all_results, f, indent=2, default=str)
+        except Exception as e:
+            print(f"Error writing history to file: {e}", file=sys.stderr)
+
         return {
-            "raw_history": data,
+            "raw_history": all_results,
             "latest_author": author,
             "lastPassCommitSHA": last_pass_commit_sha,
             "lastPassDate": last_pass_date,
@@ -243,7 +285,7 @@ def build_test_diff(previous_results, current_results, current_run_author, curre
     }
 
     history_futures = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for test_id in all_test_ids:
             prev = previous_map.get(test_id)
             curr = current_map.get(test_id)
@@ -252,14 +294,16 @@ def build_test_diff(previous_results, current_results, current_run_author, curre
                 continue  # test disappeared
 
             if not prev and curr:
-                curr["author"] = curr.get("author") or current_run_author
+                # curr["author"] = curr.get("author") or current_run_author
                 diff["New Tests"].append(curr)
             elif prev["status"] == "failed" and curr["status"] == "passed":
                 diff["Resolved"].append(curr)
             elif prev["status"] == "failed" and curr["status"] == "failed":
+                diff["Still Failing"].append(curr)
                 if curr["testId"] not in history_futures:
                     history_futures[curr["testId"]] = executor.submit(get_test_history, str(curr["spec"]), str(curr["name"]), current_run_timestamp)
             elif prev["status"] == "passed" and curr["status"] == "failed":
+                diff["New Failures"].append(curr)
                 if curr["testId"] not in history_futures:
                     history_futures[curr["testId"]] = executor.submit(get_test_history, str(curr["spec"]), str(curr["name"]), current_run_timestamp)
 
@@ -267,12 +311,11 @@ def build_test_diff(previous_results, current_results, current_run_author, curre
             history = future.result()
             curr = current_map[test_id]
             curr["history"] = history
-            curr["author"] = history.get("latest_author") or current_run_author
+            curr["author"] = current_run_author
             curr["lastPassCommitSHA"] = history.get("lastPassCommitSHA")
             curr["lastPassDate"] = history.get("lastPassDate")
             curr["consecutiveFailures"] = history.get("consecutiveFailures")
 
-            # print(f"Debug: History for test '{curr['name']}':")
             print(f"Debug: consecutiveFailures: {curr['consecutiveFailures']}")
 
             # Check the logic for categorizing as "Still Failing" or "New Failure"
@@ -283,27 +326,25 @@ def build_test_diff(previous_results, current_results, current_run_author, curre
                 curr["firstFailureCommitSHA"] = first_failure.get("commit", {}).get("sha")
 
                 # Debug print statement to confirm the commit SHA for the first failure
-                print(f"Debug: First failure commit SHA for '{curr['name']}': {curr['firstFailureCommitSHA']}")
-
-                diff["Still Failing"].append(curr)
-                # print(f"⭐️{curr}")
-            # A test is a "New Failure" if it failed in the current run but either:
-            # - passed in the previous run
-            # - failed in the previous run but this is the first failure in the sequence
-            else:
-                print(f"Debug: Adding to 'New Failures': {curr['name']}")
-                diff["New Failures"].append(curr)
+                # print(f"Debug: First failure commit SHA for '{curr['name']}': {curr['firstFailureCommitSHA']}")
 
     for key in diff:
         diff[key] = sorted(diff[key], key=lambda x: x["name"])
 
-    print(f"Diff: {diff}")
+    # Write the diff to a JSON file for debugging and reference
+
+    try:
+        with open("diff.json", "w") as f:
+            json.dump(diff, f, indent=2, default=str)
+        # print(f"Test diff written to {output_file}")
+    except Exception as e:
+        print(f"Error writing diff to file: {e}", file=sys.stderr)
 
     return diff
 
 
 def get_last_runs():
-    limit = 20
+    limit = LAST_RUN_LIMIT
     url = f"https://api.currents.dev/v1/projects/{CURRENTS_PROJECT_ID}/runs?limit={limit}"
     # print(f"Fetching last {limit} runs from {url}")
     try:
@@ -444,6 +485,7 @@ context = {
     "current_results": None,
     "current_run_author": None,
     "current_run_timestamp": None,
+    "run_diff": None,
 }
 
 def process_conversation(messages):
@@ -471,6 +513,7 @@ def process_conversation(messages):
             content = {}
 
             if function_name == "get_last_runs":
+                print("📦 Loading run data...")
                 runs = get_last_runs()
                 current_index = next((i for i, r in enumerate(runs) if r["runId"] == CURRENTS_CURRENT_RUN_ID), None)
 
@@ -484,18 +527,22 @@ def process_conversation(messages):
 
                 previous_run_id = runs[current_index + 1]["runId"]
                 current_run_id = runs[current_index]["runId"]
+                current_run_timestamp = runs[current_index]["createdAt"]
 
                 # Store results in context
-                # context["current_run_id"] = current_run_id
                 context["previous_run_id"] = previous_run_id
-                print(f"Current run ID: {context['current_run_id']}")
-                print(f"Previous run ID: {context['previous_run_id']}")
+                context["current_run_timestamp"] = current_run_timestamp
+
+                print(f"   ↳ Current: {current_run_id}")
+                print(f"   ↳ Previous: {previous_run_id}")
                 
                 # Return both run IDs in the content
                 content = {
                     "current_run_id": current_run_id,
                     "previous_run_id": previous_run_id,
+                    "current_run_timestamp": current_run_timestamp,
                 }
+
             elif function_name == "get_test_results_for_run":
                 run_id = function_args.get("run_id")
                 content = get_test_results_for_run(run_id)
@@ -506,7 +553,9 @@ def process_conversation(messages):
                 elif run_id == context["previous_run_id"]:
                     # print(f"Storing results as previous for {run_id}")
                     context["previous_results"] = content
+
             elif function_name == "build_test_diff":
+                print("🧠 Analyzing test runs with OpenAI...")
                 previous_run_results = context.get("previous_results")
                 current_run_results = context.get("current_results")
                 current_run_author = function_args.get("current_run_author")
@@ -515,11 +564,11 @@ def process_conversation(messages):
                 previous_run_id = context.get("previous_run_id")
 
                 # print previous_run_results to file
-                # with open(f"previous_run_results-{previous_run_id}.json", "w") as file:
-                #     json.dump(previous_run_results, file, indent=2)
-                # # print current_run_results to file
-                # with open(f"current_run_results-{current_run_id}.json", "w") as file:
-                #     json.dump(current_run_results, file, indent=2)
+                with open(f"previous_run_results-{previous_run_id}.json", "w") as file:
+                    json.dump(previous_run_results, file, indent=2)
+                # print current_run_results to file
+                with open(f"current_run_results-{current_run_id}.json", "w") as file:
+                    json.dump(current_run_results, file, indent=2)
 
                 # Ensure that previous and current results are not None
                 if previous_run_results is None or current_run_results is None:
@@ -527,16 +576,18 @@ def process_conversation(messages):
                     return "Error: Missing test results"
 
                 content = build_test_diff(previous_run_results, current_run_results, current_run_author, current_run_timestamp)
-                print(content)
+                context["run_diff"] = content
 
             elif function_name == "fetch_instance_tests":
                 instance_id = function_args.get("instance_id")
                 content = fetch_instance_tests(instance_id)
+
             elif function_name == "get_test_history":
                 spec = function_args.get("spec")
                 test_name = function_args.get("test_name")
                 run_timestamp = function_args.get("run_timestamp")
                 content = get_test_history(spec, test_name, run_timestamp)
+            
             else:
                 # If the function is unknown, return an error message
                 content = f"Unknown function: {function_name}"
@@ -559,51 +610,42 @@ def process_conversation(messages):
 messages = [
     {
         "role": "system",
-        "content": "You are a helpful assistant that can fetch Playwright test results from the Currents.dev API and analyze them. I'm going to need you to remember a few things: `previous_run_results`, `current_run_results`, `current_run_author`, and `current_run_timestamp`. These will be used to build a test diff. You can also use the `get_test_history` function to fetch test history for specific tests.",
-    },
-    {
-        "role": "user",
-        "content": f"First, let's retrieve the last 2 runs (use tool: get_last_runs). The project ID is {CURRENTS_PROJECT_ID}. Let's refer to the most 2 recent runs from these results as the `current_run_id` and `previous_run_id`. Next, let's fetch the test results (get_test_results_for_run) for both current run and previous run ids. Remember these tests results (current_test_results, previous_test_results), we need them later."
-    },
-    {
-        "role": "user",
-        "content": f"Next, let's build a test diff between the previous and current results. (build_test_diff). This will help us identify the following tests: New Failures, Still Failing, New Tests, and Resolved. The diff should include the test name, status, and any relevant metadata. We can ignore pending/skipped tests."
-    },
-    # {
-    #     "role": "user",
-    #     "content": "Can you share your current diff with me?",
-    # }
-    {
-        "role": "user",
-        "content": f"""Finally, let's summarize meaningful changes across tests. Categorize the tests and include 1-sentence insights where possible. Make it easy to scan. Use this format, with no bullets and one test per line. Make sure to count the items from the JSON data and ensure the section counts match the actual number of entries. If there are 5 or more 'New Failures', please identify any common themes, related features, or error messages that might indicate a broader issue. Only include a section if it has at least one test. Do not write anything about sections that are empty — completely omit the section header and any related commentary. If there are no sections to display (everything has PASSED), just say '✅ All tests passed.
+        "content": """You are an assistant that can fetch Playwright test results from the Currents.dev API and analyze them using the provided `run_diff` data. 
+        The following steps need to be completed in sequence:
+        1. Fetch the last 2 runs for the project with {CURRENTS_PROJECT_ID}. Use `get_last_runs`. Refer to the most recent as `current_run_id` and the second most recent as `previous_run_id`.
+        2. Fetch the test results for both runs using `get_test_results_for_run` for the `current_run_id` and `previous_run_id`.
+        3. Build a test diff between the previous and current results using `build_test_diff`. Use context: `run_diff` to categorize the tests:
+            - Only include a section if it has at least one test. Do not include any commentary for empty sections or a high level summary, just the sections below should be included.
+
         🧩 Common Themes (only show this section if there are 5+ New Failures)
-        If there are 5 or more new failures, include a section called '🧩 Common Themes' summarizing any shared cause, errors or themes. Otherwise, omit it entirely.
-        If there are more than one observations, separate them on a new line with a bullet point and make them very short minimal one liner summaries that are easy to scan.
-        Just say '✅ All tests passed.' if there are NO failures, new tests, or resolved tests.
+        If there are 5 or more new failures, include a section called '🧩 Common Themes' summarizing any shared causes, errors, or themes. If there is more than one observation, separate them on a new line with a bullet point.
 
         🔴 New Failures (new_failures_count):
-        (For each test that failed:
-        - If the test has failed for 2 or more consecutive times: "failing for the last N runs".
-        - Include very short error context if available, but omit stack traces or redundant info.)
-        - Do not include author
-
+        if len(diff["Still Failing"]) > 0:
+        analysis += "🫠 Still Failing (X):\n" + "\n".join([test["name"] for test in diff["Still Failing"]])
+        For each test that failed:
+        - If the test has failed 2 or more consecutive times, note "failing for the last N runs".
+        - Include very short error context if available, but omit stack traces or redundant info.
+        - Do not include author.
+        Example:
         [e2e-group] Feature > Test name
         [e2e-browser] Feature2 > Test name (increased flakiness, 3+ failures in last 5 runs)
 
         🫠 Still Failing (still_failing_count):
-        [e2e-win] Feature > Test name (failed X times) – since commit make_terminal_link('f9ae619de39b948eb5672f76808877d06b0db1d8', 'https://github.com/posit-dev/positron/commit/f9ae619de39b948eb5672f76808877d06b0db1d8')(shorthand version for title but full version for link).
-        (first failure commit SHA: firstFailureCommitSHA')
+        - Do not include error analysis.
+        [e2e-win] Feature > Test name (X consecutive fails) – since commit [shorthand commitSHA]('https://github.com/posit-dev/positron/commit/fullcommitSHA')
     
         ⭐️ New Tests (new_test_count):
+        - No extra commentary.
         [groupId] Feature > Test name (added by commit.authorName)
         [e2e-electron] Login > Should be able to login (added by Marie Idleman)
 
         ✅ Resolved (resolved_count):
-        [e2e-electron] Feature > Test name (no recent passing history)"""
-    },
-]
+        [e2e-electron] Feature > Test name
+        """
+    }]
 
 # Start the conversation and process any tool calls
 final_response = process_conversation(messages)
 
-print("Analysis:\n\n", final_response)
+print("\n\n", final_response)
