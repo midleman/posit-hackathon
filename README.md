@@ -42,8 +42,6 @@ FILTER_TAGS=merge
 
 ## Example
 
-If a test that was previously failing has now passed in the most recent run, it will be categorized under "Resolved." Here's an example:
-
 ```markdown
 🫠 Still Failing (1)
 [e2e-electron] New UV Environment > Python - Add new UV environment (3x since abc1234)
