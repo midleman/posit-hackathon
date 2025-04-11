@@ -11,31 +11,27 @@ This project is designed to help you retrieve, analyze, and compare test results
 
 ## Installation
 
-To get started with this project, follow these steps:
+Get started with a few quick steps:
 
-1. **Clone the repository:**
+1. Clone and install dependencies
 
-    ```bash
-    git clone https://github.com/posit-dev/posit-hackathon.git
-    ```
+```bash
+# clone the repo
+git clone https://github.com/posit-dev/posit-hackathon.git
 
-2. **Install dependencies:**
+# ensure you have `python` and `pip` installed. Then, install the necessary dependencies by running:
+pip install -r requirements.txt
+```
 
-    Ensure you have `python` and `pip` installed. Then, install the necessary dependencies by running:
+2. Add `.env` to root dir
 
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3. **Set environment variables:**
-
-    You will need to set the following environment variables for API access:
-
-    ```bash
-    CURRENTS_API_KEY=your_api_key
-    CURRENTS_PROJECT_ID=your_project_id
-    OPENAI_API_KEY=your_api_key
-    ```
+```bash
+CURRENTS_API_KEY=your_api_key <--- ask Marie for one if you need one!
+OPENAI_API_KEY=your_api_key
+CURRENTS_PROJECT_ID=ZOs5z2
+FILTER_BRANCHES=main,ref/heads/main
+FILTER_TAGS=merge
+```
 
 ## How It Works
 
