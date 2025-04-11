@@ -30,8 +30,8 @@ def analyze_test_results(test_run_diff, current_run_details, openai_api_key):
         Do not include error analysis or observations.
         If test title is more than 50 characters, truncate at 50 and add append "...
         Example:
-        [e2e-win] Feature > Test name (2x since [shorthand commitSHA])
-        [e2e-browser] Feature > Test name (3x since [shorthand commitSHA])
+        [e2e-win] Feature > Test name (2x since shorthand commitSHA)
+        [e2e-browser] Feature > Test name (3x since shorthand commitSHA)
 
         ⭐️ New Tests ({len(test_run_diff["New Tests"])}):
         If test title is more than 50 characters, truncate at 50 and add append "...

@@ -18,8 +18,8 @@ def load_config():
         "currents_project_id": os.getenv("CURRENTS_PROJECT_ID"),
         "openai_api_key": os.getenv("OPENAI_API_KEY"),
         # toggle scenario
-        "currents_current_run_id": 'd2d5a69185f2ca69'  # new tests
-        # "currents_current_run_id": '8d295e14f8b6168c'  # 12 resolved, 2 still failing
+        # "currents_current_run_id": 'd2d5a69185f2ca69'  # new tests
+        "currents_current_run_id": '8d295e14f8b6168c'  # 12 resolved, 2 still failing
         # "currents_current_run_id": 'c38c1f8033d08338'  # passing" scenario
         # "currents_current_run_id": 'b5b38a6560f9218d'  # persistent failure 6x
         # "currents_current_run_id": '324ac53e1fc63ec9'  # new failure
