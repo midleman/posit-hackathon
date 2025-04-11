@@ -31,7 +31,7 @@ FILTER_BRANCHES=main,ref/heads/main
 FILTER_TAGS=merge
 ```
 
-## Example
+## Expected Output
 
 ```markdown
 🫠 Still Failing (1)
@@ -48,6 +48,10 @@ FILTER_TAGS=merge
 ✅ Resolved (1):
 [Interpreter: Excludes] R - Can Exclude an Interpreter
 ```
+
+## Screenshot
+
+![Example run](src/imgs/example-run.png)
 
 ## License
 
