@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 2. Add `.env` to root dir
 
-```bash
+```text
 CURRENTS_API_KEY=your_api_key <--- ask Marie for one if you need one!
 OPENAI_API_KEY=your_api_key
 CURRENTS_PROJECT_ID=ZOs5z2
