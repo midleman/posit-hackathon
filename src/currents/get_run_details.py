@@ -1,6 +1,9 @@
 import requests
+import os
 
-def get_run_details(run_id: str, api_key: str) -> dict:
+CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
+
+def get_run_details(run_id: str) -> dict:
     """
     Fetch details for a given Currents run ID.
 
@@ -13,7 +16,7 @@ def get_run_details(run_id: str, api_key: str) -> dict:
     """
     url = f"https://api.currents.dev/v1/runs/{run_id}"
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {CURRENTS_API_KEY}",
         "Content-Type": "application/json"
     }
 

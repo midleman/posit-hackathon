@@ -1,7 +1,7 @@
 from helpers.tools.write_debug_file import write_debug_file
 from currents.get_test_results_for_run import get_test_results_for_run
 
-def get_test_data(current_run_id, previous_run_id, debug_mode=False):
+def get_run_test_results(current_run_id, previous_run_id, debug_mode=False):
     print("🧪 Get test results...")
     current_run_tests = get_test_results_for_run(current_run_id)
     previous_run_tests = get_test_results_for_run(previous_run_id)

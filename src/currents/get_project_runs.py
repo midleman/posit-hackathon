@@ -62,7 +62,7 @@ def get_project_runs(limit: int = 10, ending_after: str = None, tags: list = Non
         return {"error": str(err)}
 
 
-def get_previous_run(reference_run_id: str) -> dict:
+def get_previous_run(reference_run_id: str, tags: list = ['merge'], branches: list = ['main', 'refs/heads/main']) -> dict:
     """
     Fetch the immediate previous run for a given Currents project before a specific run ID.
 
@@ -77,7 +77,7 @@ def get_previous_run(reference_run_id: str) -> dict:
     seen_reference = False
 
     while True:
-        recent_runs = get_project_runs(limit=50, ending_after=cursor, tags=['merge'], branches=['main', 'refs/heads/main'])
+        recent_runs = get_project_runs(limit=50, ending_after=cursor, tags = tags, branches = branches)
         runs = recent_runs.get("data", [])
         if not runs:
             break
