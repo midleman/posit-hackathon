@@ -42,7 +42,7 @@ def get_test_results_for_run(run_id):
         future_to_instance = {executor.submit(fetch_instance_tests, instance_id): instance_id for instance_id in instance_ids}
         
         # Process results as they complete
-        for future in tqdm(concurrent.futures.as_completed(future_to_instance), total=len(instance_ids), desc=f"⬇️  Retrieve {run_id} tests ({len(instance_ids)})"):
+        for future in tqdm(concurrent.futures.as_completed(future_to_instance), total=len(instance_ids), desc=f"    ↪ [{run_id}] {len(instance_ids)} tests"):
             instance_id = future_to_instance[future]
             try:
                 test_instance = future.result()
@@ -51,11 +51,13 @@ def get_test_results_for_run(run_id):
                 for test in test_instance:
                     results.append({
                         "name": test["name"],
+                        "title": test["title"],
                         "testId": test["testId"],
                         "status": test["state"],
                         "groupId": test["groupId"],
                         "spec": test["spec"],
-                        "signature": test["signature"]
+                        # "signature": test["signature"],
+                        "attempts": test["attempts"],
                     })
             except Exception as e:
                 print(f"Error processing instance {instance_id}: {e}", file=sys.stderr)

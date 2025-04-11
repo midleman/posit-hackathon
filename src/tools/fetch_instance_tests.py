@@ -31,13 +31,16 @@ def fetch_instance_tests(instance_id):
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(tests))) as executor:
                 def process_test(test):
                     test_name = " > ".join(test["title"]) if isinstance(test["title"], list) else str(test["title"])
+
                     return {
                         "name": test_name,
+                        "title": test.get("title"),
                         "testId": test.get("testId"),
                         "state": test.get("state"),
                         "groupId": group_id,
                         "spec": spec_path,
-                        "signature": instance_data.get("signature")
+                        "signature": instance_data.get("signature"),
+                        "attempts": test.get("attempts")
                     }
                 
                 # Map tests to futures and collect results
@@ -48,13 +51,16 @@ def fetch_instance_tests(instance_id):
             # Process sequentially for small number of tests
             for test in tests:
                 test_name = " > ".join(test["title"]) if isinstance(test["title"], list) else str(test["title"])
+
                 results.append({
                     "name": test_name,
+                    "title": test["title"],
                     "testId": test.get("testId"),
                     "state": test.get("state"),
                     "groupId": group_id,
                     "spec": spec_path,
-                    "signature": instance_data.get("signature")
+                    "signature": instance_data.get("signature"),
+                    "attempts": test.get("attempts"),
                 })
                 
         return results
