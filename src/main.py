@@ -20,11 +20,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Toggle for different scenarios
-CURRENTS_CURRENT_RUN_ID = '8d295e14f8b6168c' # 12 resolved, 2 failures
+# CURRENTS_CURRENT_RUN_ID = '8d295e14f8b6168c' # 12 resolved, 2 still failing
 # CURRENTS_CURRENT_RUN_ID = 'd2d5a69185f2ca69' # new tests
 # CURRENTS_CURRENT_RUN_ID = 'c38c1f8033d08338' # passing
 # CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d' # persistent failure 6x
-# CURRENTS_CURRENT_RUN_ID = '324ac53e1fc63ec9' # new failure
+CURRENTS_CURRENT_RUN_ID = '324ac53e1fc63ec9' # new failure
 # CURRENTS_CURRENT_RUN_ID = 'cd6f705cb1aed1d0' # 12 new failures, 2 still failing
 # CURRENTS_CURRENT_RUN_ID = 'd2d5a69185f2ca69' # new test
 
@@ -88,7 +88,6 @@ def main():
                     Only show sections that have data, do not comment about empty sections.
                     Do not format the output as a markdown code block.
                     Do not insert bullet points or any other formatting unless directed to do so.
-                    If test title is more than 50 characters, truncate at 50 and add append "...
 
                     🔍 Patterns (only show this section if there are 4+ New Failures)
                     Summarize any similar or repetitive errors?. Do any particular features seem to have multiple failures?
@@ -99,6 +98,7 @@ def main():
                     Do not include author.
                     Do not include comment about consecutive failures/attempts.
                     Always keep it VERY brief and to one line.
+                    If test title is more than 50 characters, truncate at 50 and add append "...
                     Example:
                     [e2e-browser] Feature > Test name — Timeout waiting for 'Preview'
                     [e2e-electron] Feature > Test name — Timeout waiting for visibility
@@ -107,11 +107,13 @@ def main():
                     🫠 Still Failing ({len(test_run_diff["Still Failing"])}):
                     Include note "Yx since Z".
                     Do not include error analysis or observations.
+                    If test title is more than 50 characters, truncate at 50 and add append "...
                     Example:
                     [e2e-win] Feature > Test name (2x since [shorthand commitSHA])
                     [e2e-browser] Feature > Test name (3x since [shorthand commitSHA])
 
                     ⭐️ New Tests ({len(test_run_diff["New Tests"])}):
+                    If test title is more than 50 characters, truncate at 50 and add append "...
                     No extra commentary, but include author name.
                     Example:
                     [groupId] Feature > Test name (by {current_run_details.get("meta", {}).get("commit", {}).get("authorName")})

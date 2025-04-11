@@ -50,16 +50,17 @@ To get started with this project, follow these steps:
 
 If a test that was previously failing has now passed in the most recent run, it will be categorized under "Resolved." Here's an example:
 
-```bash
-🫠 Still Failing (1)
-[e2e-electron]  New UV Environment > Python - Add new UV environment (3 consecutive fails) - since commit [abc1234](http://www.google.com)
+```markdown
+🫠 Still Failing (1)*
+[e2e-electron] New UV Environment > Python - Add new UV environment (3x since abc1234)
 
 🔴 New Failure (1)
-[e2e-electron]  New UV Environment > Python - Add new UV environment - Timed out 15000ms waiting for locator('.quick-input-widget .quick-input-box input') to be not visible. The locator remained visible unexpectedly
+[e2e-electron] Notebooks > Python Notebooks > Python - Save untitled notebook and preserve... — Timeout waiting for invisibility
 
-⭐️ New Tests (2):
-[Console Pane: Alternate Python] Verify alternate python can skip bundled ipykernel (added by Marie Idleman)
-[Console Pane: Python] Python - queue user input while interpreter is starting (added by Marie Idleman)
+⭐️ New Tests (3):
+[e2e-browser] Console Pane: R > R - Verify cat ... (added by Marie Idleman)
+[e2e-windows] Console Pane: R > R - Verify cat ... (added by Marie Idleman)
+[e2e-electron] Console Pane: R > R - Verify cat ... (added by Marie Idleman)
 
 ✅ Resolved (1):
 [Interpreter: Excludes] R - Can Exclude an Interpreter
