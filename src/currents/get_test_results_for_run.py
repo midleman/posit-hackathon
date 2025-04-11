@@ -1,6 +1,6 @@
 import requests
-from currents_api.fetch_instance_tests import fetch_instance_tests
-from currents_api.retry_request import retry_request
+from currents.fetch_instance_tests import fetch_instance_tests
+from currents.retry_request import retry_request
 import concurrent.futures
 from tqdm import tqdm
 import os
