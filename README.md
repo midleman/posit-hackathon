@@ -11,8 +11,6 @@ This project is designed to help you retrieve, analyze, and compare test results
 
 ## Installation
 
-Get started with a few quick steps:
-
 1. Clone and install dependencies
 
 ```bash
