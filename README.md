@@ -13,23 +13,23 @@ This project is designed to help you retrieve, analyze, and compare test results
 
 1. Clone and install dependencies
 
-```bash
-# clone the repo
-git clone https://github.com/posit-dev/posit-hackathon.git
-
-# ensure you have `python` and `pip` installed. Then, install the necessary dependencies by running:
-pip install -r requirements.txt
-```
+   ```bash
+   # clone the repo
+   git clone https://github.com/posit-dev/posit-hackathon.git
+   
+   # ensure you have `python` and `pip` installed. Then, install the necessary dependencies by running:
+   pip install -r requirements.txt
+   ```
 
 2. Add `.env` to root dir
 
-```text
-CURRENTS_API_KEY=your_api_key <--- ask Marie for one if you need one!
-OPENAI_API_KEY=your_api_key
-CURRENTS_PROJECT_ID=ZOs5z2
-FILTER_BRANCHES=main,ref/heads/main
-FILTER_TAGS=merge
-```
+   ```text
+   CURRENTS_API_KEY=your_api_key <--- ask Marie for one if you need one!
+   OPENAI_API_KEY=your_api_key
+   CURRENTS_PROJECT_ID=ZOs5z2
+   FILTER_BRANCHES=main,ref/heads/main
+   FILTER_TAGS=merge
+   ```
 
 3. Modify `main.py` to choose sample test run id
 
