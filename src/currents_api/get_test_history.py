@@ -1,8 +1,6 @@
 import os
-import json
-import sys
 import requests
-from tools.retry_request import retry_request
+from currents_api.retry_request import retry_request
 
 MAX_WORKERS = 5
 LAST_RUN_LIMIT = 10
@@ -10,11 +8,7 @@ CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
 HEADERS = {"Authorization": f"Bearer {CURRENTS_API_KEY}"}
 
-# {
-#     "projectId": "your project id",
-#     "specFilePath": "the spec file path",
-#     "testTitle": ["title part 1", "title part 2"]
-# }
+
 def get_test_history(spec_path, test_title, run_timestamp, group_id):
     # print(f"GET_TEST_HISTORY spec: {spec}, test_name: {test_name}, run_timestamp: {run_timestamp}")
     from datetime import datetime, timedelta

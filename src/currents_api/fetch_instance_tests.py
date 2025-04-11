@@ -1,5 +1,5 @@
 import requests
-from tools.retry_request import retry_request
+from currents_api.retry_request import retry_request
 import concurrent.futures
 import os
 import sys

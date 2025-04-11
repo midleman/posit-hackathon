@@ -1,10 +1,11 @@
 import requests
-from tools.retry_request import retry_request
+from currents_api.fetch_instance_tests import fetch_instance_tests
+from currents_api.retry_request import retry_request
 import concurrent.futures
 from tqdm import tqdm
 import os
 import sys
-from tools.fetch_instance_tests import fetch_instance_tests
+
 
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
@@ -35,6 +36,7 @@ def get_test_results_for_run(run_id):
     # print(f"Found {len(instance_ids)} test instances in run {run_id}")
 
     results = []
+    
     # Process instance IDs sequentially instead of using ThreadPoolExecutor
     # Use ThreadPoolExecutor for parallel fetching of test instances
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(instance_ids))) as executor:

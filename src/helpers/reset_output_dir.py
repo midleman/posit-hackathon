@@ -2,7 +2,7 @@ import os
 import shutil
 
 # Create output directory or clean it if it exists
-def resetOutputDir():
+def reset_output_dir():
     """
     This function resets the output directory by deleting all files in it.
     If the directory does not exist, it creates a new one.

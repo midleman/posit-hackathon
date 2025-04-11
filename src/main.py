@@ -3,13 +3,13 @@ import sys
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-from tools.get_run_details import get_run_details
-from tools.fetch_instance_tests import fetch_instance_tests
-from tools.get_test_results_for_run import get_test_results_for_run
-from tools.get_project_runs import get_previous_run
-from tools.compare_test_results import compare_test_results
-from tools.get_test_history import get_test_history
-from helpers.resetOutputDir import resetOutputDir
+
+from currents_api.get_run_details import get_run_details
+from currents_api.get_test_results_for_run import get_test_results_for_run
+from currents_api.get_project_runs import get_previous_run
+from currents_api.get_test_history import get_test_history
+from helpers.compare_test_results import compare_test_results
+from helpers.reset_output_dir import reset_output_dir
 
 load_dotenv()
 
@@ -32,7 +32,7 @@ CURRENTS_CURRENT_RUN_ID = '8d295e14f8b6168c' # 12 resolved, 2 failures
 def main():
     debug_mode = "--debug" in sys.argv or "-d" in sys.argv
     
-    resetOutputDir()
+    reset_output_dir()
 
     print("📦 Get test runs...")
     print(f"    ↪ current run id: {CURRENTS_CURRENT_RUN_ID}")
@@ -99,7 +99,6 @@ def main():
                     Do not include author.
                     Do not include comment about consecutive failures/attempts.
                     Always keep it VERY brief and to one line.
-
                     Example:
                     [e2e-browser] Feature > Test name — Timeout waiting for 'Preview'
                     [e2e-electron] Feature > Test name — Timeout waiting for visibility
@@ -108,14 +107,12 @@ def main():
                     🫠 Still Failing ({len(test_run_diff["Still Failing"])}):
                     Include note "Yx since Z".
                     Do not include error analysis or observations.
-
                     Example:
                     [e2e-win] Feature > Test name (2x since [shorthand commitSHA])
                     [e2e-browser] Feature > Test name (3x since [shorthand commitSHA])
 
                     ⭐️ New Tests ({len(test_run_diff["New Tests"])}):
                     No extra commentary, but include author name.
-                    
                     Example:
                     [groupId] Feature > Test name (by {current_run_details.get("meta", {}).get("commit", {}).get("authorName")})
                     [e2e-electron] Login > Should be able to login (added by Marie Idleman)
@@ -123,7 +120,6 @@ def main():
                     ✅ Resolved ({len(test_run_diff["Resolved"])}):
                     If test title is more than 90 characters, truncate at 90 characters. (Resolved section only)
                     No extra commentary.
-
                     Example:
                     [e2e-electron] Feature > Test name
                     """
