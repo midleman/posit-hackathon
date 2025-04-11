@@ -15,7 +15,7 @@ This project is designed to help you retrieve, analyze, and compare test results
 
    ```bash
    # clone the repo
-   git clone https://github.com/posit-dev/posit-hackathon.git
+   git clone https://github.com/midleman/posit-hackathon.git
    
    # ensure you have `python` and `pip` installed. Then, install the necessary dependencies by running:
    pip install -r requirements.txt
