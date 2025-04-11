@@ -47,7 +47,7 @@ FILTER_TAGS=merge
 If a test that was previously failing has now passed in the most recent run, it will be categorized under "Resolved." Here's an example:
 
 ```markdown
-🫠 Still Failing (1)*
+🫠 Still Failing (1)
 [e2e-electron] New UV Environment > Python - Add new UV environment (3x since abc1234)
 
 🔴 New Failure (1)
@@ -60,13 +60,5 @@ If a test that was previously failing has now passed in the most recent run, it 
 
 ✅ Resolved (1):
 [Interpreter: Excludes] R - Can Exclude an Interpreter
-```
-
-### There are no notable diffs between the runs
-
-If the results from the previous and current runs are essentially the same (i.e., all tests pass or fail in the same way), the output will indicate that all tests passed:
-
-```bash
-All tests passed. ✅
 ```
 
