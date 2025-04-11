@@ -31,6 +31,13 @@ FILTER_BRANCHES=main,ref/heads/main
 FILTER_TAGS=merge
 ```
 
+3. Modify `main.py` to choose sample test run id
+
+4. Run the code!
+   ```
+   npm run analyze -- --debug
+   ```
+
 ## Expected Output
 
 ```markdown
