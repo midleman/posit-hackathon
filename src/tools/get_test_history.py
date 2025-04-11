@@ -125,7 +125,7 @@ def get_test_history(spec_path, test_title, run_timestamp, group_id):
             "latest_author": author,
             "lastPassCommitSHA": last_pass_commit_sha,
             "lastPassDate": last_pass_date,
-            "consecutiveFailures": consecutive_failures
+            "consecutiveFailures": consecutive_failures + 1 # + 1 to include the current failure
         }
     except Exception as e:
         return {"raw_history": [], "error": str(e)}

@@ -3,7 +3,6 @@ import sys
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-
 from tools.get_run_details import get_run_details
 from tools.fetch_instance_tests import fetch_instance_tests
 from tools.get_test_results_for_run import get_test_results_for_run
@@ -12,10 +11,7 @@ from tools.compare_test_results import compare_test_results
 from tools.get_test_history import get_test_history
 from helpers.resetOutputDir import resetOutputDir
 
-
-
 load_dotenv()
-
 
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
@@ -24,20 +20,13 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Toggle for different scenarios
-# CURRENTS_CURRENT_RUN_ID = 'c38c1f8033d08338' # passing
-# CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d' # persistent failure
-# CURRENTS_CURRENT_RUN_ID = 'd60176d0382f94a8' # recovered
-# CURRENTS_CURRENT_RUN_ID = '324ac53e1fc63ec9' # new failure
 CURRENTS_CURRENT_RUN_ID = '8d295e14f8b6168c' # 12 resolved, 2 failures
-# CURRENTS_CURRENT_RUN_ID = 'cd6f705cb1aed1d0' # many failures
+# CURRENTS_CURRENT_RUN_ID = 'd2d5a69185f2ca69' # new tests
+# CURRENTS_CURRENT_RUN_ID = 'c38c1f8033d08338' # passing
+# CURRENTS_CURRENT_RUN_ID = 'b5b38a6560f9218d' # persistent failure 6x
+# CURRENTS_CURRENT_RUN_ID = '324ac53e1fc63ec9' # new failure
+# CURRENTS_CURRENT_RUN_ID = 'cd6f705cb1aed1d0' # 12 new failures, 2 still failing
 # CURRENTS_CURRENT_RUN_ID = 'd2d5a69185f2ca69' # new test
-
-# Reset output directory to ensure we have a clean slate
-
-
-# Initialize the OpenAI client
-# client = OpenAI()
-
 
 # 🤖 Main
 def main():
@@ -67,9 +56,11 @@ def main():
         with open("output/previous_run_tests.json", "w") as f:
             json.dump(previous_run_tests, f, indent=2, default=str)
 
+    # compare the test results
+    test_run_diff = compare_test_results(previous_run_tests, current_run_tests)
+
     # for tests that are still failing, get the history of the test
     # and add it to the test object
-    test_run_diff = compare_test_results(previous_run_tests, current_run_tests)
     still_failing = test_run_diff.get("Still Failing", [])
     if still_failing:
         for test in still_failing:
@@ -85,24 +76,7 @@ def main():
                     with open(f"output/test_history_{group_id}_{safe_test_name}.json", "w") as f:
                         json.dump(test_history, f, indent=2, default=str)
 
-    # # if new failure, get the error details
-    # new_failures = test_run_diff.get("New Failures", [])
-    # if new_failures:
-    #     for test in new_failures:
-    #         test_name = test.get("name")
-    #         spec = test.get("spec")
-    #         run_timestamp = current_run_details.get("createdAt")
-    #         if test_name and spec and run_timestamp:
-    #             test_history = get_test_history(spec, test_name, run_timestamp)
-    #             test["history"] = test_history
-    #             if debug_mode:
-    #                 print(f"Retrieved history for test: {test_name}")
-    #                 with open(f"output/test_history_{test_name}.json", "w") as f:
-    #                     json.dump(test_history, f, indent=2, default=str)
-
     # use OpenAI to analyze the test results
-    # and generate a report
-
     print("🧠 Analyzing data with OpenAI...")
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -110,35 +84,49 @@ def main():
             {
                 "role": "user",
                 "content": 
-f"""Analyze {test_run_diff} and provide a summary of the changes.
-Only show sections that have data, do not comment about empty sections.
-Do not insert bullet points or any other formatting unless directed to do so.
-Do not format the output as a markdown code block.
+                    f"""Analyze {test_run_diff} and provide a summary of the changes.
+                    Only show sections that have data, do not comment about empty sections.
+                    Do not format the output as a markdown code block.
+                    Do not insert bullet points or any other formatting unless directed to do so.
+                    If test title is more than 50 characters, truncate at 50 and add append "...
 
-🧩 Common Themes (only show this section if there are 5+ New Failures)
-Summarize any shared causes, errors, or themes. If there is more than one observation, separate them on a new line with a bullet point.
+                    🔍 Patterns (only show this section if there are 4+ New Failures)
+                    Summarize any similar or repetitive errors?. Do any particular features seem to have multiple failures?
+                    If there is more than one observation, separate them on a new line with a bullet point.
 
-🔴 New Failures ({len(test_run_diff["New Failures"])}):
-- Include very short error context if available, but omit stack traces or redundant info.
-- Do not include author.
-- Do not include comment about consecutive failures/attempts.
-Example:
-[e2e-browser] Feature2 > Test name
+                    🔴 New Failures ({len(test_run_diff["New Failures"])}):
+                    Include very short error context if available, but omit stack traces or redundant info, summarize it in 35 characters or less.
+                    Do not include author.
+                    Do not include comment about consecutive failures/attempts.
+                    Always keep it VERY brief and to one line.
 
-🫠 Still Failing ({len(test_run_diff["Still Failing"])}):
-- Include note "X consecutive fails - since commit X".
-- Do not include error analysis or observations.
-[e2e-win] Feature > Test name (X consecutive fails) – since commit [shorthand commitSHA]('https://github.com/posit-dev/positron/commit/fullcommitSHA')
+                    Example:
+                    [e2e-browser] Feature > Test name — Timeout waiting for 'Preview'
+                    [e2e-electron] Feature > Test name — Timeout waiting for visibility
+                    [e2e-window] Feature > Test name — Interrupted run
 
-⭐️ New Tests ({len(test_run_diff["New Tests"])}):
-- No extra commentary, but include author name.
-[groupId] Feature > Test name (by {current_run_details.get("meta", {}).get("commit", {}).get("authorName")})
-[e2e-electron] Login > Should be able to login (added by Marie Idleman)
+                    🫠 Still Failing ({len(test_run_diff["Still Failing"])}):
+                    Include note "Yx since Z".
+                    Do not include error analysis or observations.
 
-✅ Resolved ({len(test_run_diff["Resolved"])}):
-- No extra commentary.
-[e2e-electron] Feature > Test name
-"""
+                    Example:
+                    [e2e-win] Feature > Test name (2x since [shorthand commitSHA])
+                    [e2e-browser] Feature > Test name (3x since [shorthand commitSHA])
+
+                    ⭐️ New Tests ({len(test_run_diff["New Tests"])}):
+                    No extra commentary, but include author name.
+                    
+                    Example:
+                    [groupId] Feature > Test name (by {current_run_details.get("meta", {}).get("commit", {}).get("authorName")})
+                    [e2e-electron] Login > Should be able to login (added by Marie Idleman)
+
+                    ✅ Resolved ({len(test_run_diff["Resolved"])}):
+                    If test title is more than 90 characters, truncate at 90 characters. (Resolved section only)
+                    No extra commentary.
+
+                    Example:
+                    [e2e-electron] Feature > Test name
+                    """
             }
         ],
         tools=[],
@@ -154,3 +142,17 @@ Example:
 
 if __name__ == "__main__":
     main()
+
+
+                    # 🔴 New Failures ({len(test_run_diff["New Failures"])}):
+                    # - Truncate test title at 60 characters.
+                    # - Include very short error context if available, but omit stack traces or redundant info.
+                    # - Do not include author.
+                    # - Do not include comment about consecutive failures/attempts.
+                    # - Always keep it VERY brief and to one line.
+
+                    # [e2e-browser] Feature > Test name — Timeout waiting for 'Preview'
+                    # [e2e-electron] Feature > Test name — Timeout waiting for visibility
+                    # [e2e-window] Feature > Test name — Interrupted run
+
+                    # [shorthand commitSHA]('https://github.com/posit-dev/positron/commit/fullcommitSHA'))
