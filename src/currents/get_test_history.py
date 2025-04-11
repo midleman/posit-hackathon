@@ -1,6 +1,6 @@
 import os
 import requests
-from currents_api.retry_request import retry_request
+from currents.retry_request import retry_request
 
 MAX_WORKERS = 5
 LAST_RUN_LIMIT = 10
