@@ -1,10 +1,11 @@
 import requests
-from tools.retry_request import retry_request
+from currents_api.fetch_instance_tests import fetch_instance_tests
+from currents_api.retry_request import retry_request
 import concurrent.futures
 from tqdm import tqdm
 import os
 import sys
-from tools.fetch_instance_tests import fetch_instance_tests
+
 
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
 CURRENTS_PROJECT_ID = os.getenv("CURRENTS_PROJECT_ID")
@@ -35,6 +36,7 @@ def get_test_results_for_run(run_id):
     # print(f"Found {len(instance_ids)} test instances in run {run_id}")
 
     results = []
+    
     # Process instance IDs sequentially instead of using ThreadPoolExecutor
     # Use ThreadPoolExecutor for parallel fetching of test instances
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(instance_ids))) as executor:
@@ -42,7 +44,7 @@ def get_test_results_for_run(run_id):
         future_to_instance = {executor.submit(fetch_instance_tests, instance_id): instance_id for instance_id in instance_ids}
         
         # Process results as they complete
-        for future in tqdm(concurrent.futures.as_completed(future_to_instance), total=len(instance_ids), desc=f"⬇️  Retrieve {run_id} tests ({len(instance_ids)})"):
+        for future in tqdm(concurrent.futures.as_completed(future_to_instance), total=len(instance_ids), desc=f"    ↪ [{run_id}] {len(instance_ids)} tests"):
             instance_id = future_to_instance[future]
             try:
                 test_instance = future.result()
@@ -51,11 +53,13 @@ def get_test_results_for_run(run_id):
                 for test in test_instance:
                     results.append({
                         "name": test["name"],
+                        "title": test["title"],
                         "testId": test["testId"],
                         "status": test["state"],
                         "groupId": test["groupId"],
                         "spec": test["spec"],
-                        "signature": test["signature"]
+                        # "signature": test["signature"],
+                        "attempts": test["attempts"],
                     })
             except Exception as e:
                 print(f"Error processing instance {instance_id}: {e}", file=sys.stderr)
