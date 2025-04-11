@@ -58,3 +58,7 @@ FILTER_TAGS=merge
 [Interpreter: Excludes] R - Can Exclude an Interpreter
 ```
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
